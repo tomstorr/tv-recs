@@ -4,6 +4,9 @@
 # Local config — must never be committed (CONFIG-3)
 config.js
 
+# Personal handoff notes
+HANDOFF.md
+
 # Editor / OS noise
 *.swp
 *.swo
@@ -22,3 +25,4 @@ npm-debug.log*
 
 # Logs
 *.log
+.claude/
