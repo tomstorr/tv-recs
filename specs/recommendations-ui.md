@@ -31,7 +31,7 @@ Depends on `auth-and-data-sync` for state and mutator infrastructure.
 ### BOUNDARY (what this feature does not touch)
 
 - **BOUNDARY-1**: This feature never reads or writes the `tasteProfile`. The skill owns it. State.js's WRITE-4 enforces this; no further check needed here.
-- **BOUNDARY-2**: This feature never modifies the `watched` array. Marking a watchlist item as watched is `watchlist-ui`'s job.
+- **BOUNDARY-2**: This feature writes to `watched` only via FEEDBACK-2 and FEEDBACK-4 (rating-as-watched and dismiss). It never moves entries between `watchlist` and `watched` — that's `watchlist-ui`'s WACTION-2 / WACTION-3.
 
 ## Out of scope for this feature
 
