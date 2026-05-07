@@ -10,7 +10,7 @@ All AC IDs are also referenced inline in code comments at the satisfying line.
 
 - **CONFIG-1** ✓ `js/config-check.js` requires `GOOGLE_CLIENT_ID`, `GOOGLE_API_KEY`, `TMDB_API_KEY`, `DATA_FILE_ID`. App does not start (renders config-error screen instead) if any are missing. (Spec says three values; deviation note above.)
 - **CONFIG-2** ✓ `config.example.js` committed at project root, comments link each placeholder to the README step that explains how to obtain it.
-- **CONFIG-3** ✓ `.gitignore` already lists `config.js` (added in the initial commit).
+- **CONFIG-3** **deviated** — `config.js` was originally gitignored per the spec. After confirming with the user, the file is now committed so the GitHub Pages deploy works without a build step. The four values it holds are all public-by-design for this single-user app (origin-locked OAuth client_id, referrer-locked Drive Picker API key scoped to two APIs, free-tier TMDB key, the Drive file ID itself which is useless without the SA key at `~/.config/`). `.gitignore` carries an inline comment explaining the rationale. The spec rule remains correct in the general case; documented as a deliberate deviation here.
 - **CONFIG-4** ✓ `js/config-check.js` detects missing *and* placeholder values; `js/ui.js → renderConfigError` shows a clear screen listing what's missing or still a placeholder, with a pointer to README.
 
 ## AUTH
@@ -156,3 +156,44 @@ All AC IDs are also referenced inline in code comments.
 4. Tap **Loved** on a card → disappears; verify via `drive-helper.sh read` that the entry is gone from `watchlist` AND `watched` has a new entry with the right values. (WACTION-2)
 5. Tap **Dismiss** on another → disappears; verify same removal AND new `watched` entry has `feedback: "disliked"`, `watchedAt: null`. (WACTION-3)
 6. Switch back to Recommendations tab — the count in the tab labels should reflect the changes. (NAV-1)
+
+---
+
+# Acceptance criteria — manual-add
+
+All AC IDs are also referenced inline in code comments.
+
+## SEARCH
+
+- **SEARCH-1** ✓ `js/recommendations-ui.js → render` mounts a section at the top of the Recommendations tab and calls `manual-add.render(section)`. Placeholder: "Add a show you've seen or want to see…".
+- **SEARCH-2** ✓ `js/manual-add.js → renderSearch` debounces 300 ms and gates at 2 chars before firing `tmdb.searchTV`.
+- **SEARCH-3** ✓ `js/tmdb.js → shape` slices to 8. Result rows show title, year, poster thumb (when TMDB has one).
+- **SEARCH-4** ✓ `js/tmdb.js → searchTV` builds `https://api.themoviedb.org/3/search/tv?query=…&api_key=…`. Posters via `https://image.tmdb.org/t/p/w92{poster_path}` (and w185 for the action-bar preview).
+- **SEARCH-5** ✓ TMDB errors propagate; `js/manual-add.js → doSearch` surfaces them in `.manual-add-status` with the `status-error` class. Rest of the UI stays interactive.
+- **SEARCH-6** ✓ Input below 2 chars clears `lastResults` and the rendered list.
+- **SEARCH-7** ✓ `js/tmdb.js → cache` map keyed by normalised query.
+
+## ACT
+
+- **ACT-1** ✓ `js/manual-add.js → onPick` swaps `mode` to `"act"` and `renderAct` builds a rich preview: large poster (when present), title + year, TMDB rating, lead actors (filled in by `enrichWithDetails` after a follow-up `/tv/{id}?append_to_response=credits` fetch), blurb, then five buttons.
+- **ACT-2** ✓ Loved / OK / Disliked invoke `mutators.addManualToWatched({title, tmdbId}, value, today)`. Appends to `watched`.
+- **ACT-3** ✓ Watchlist invokes `mutators.addToWatchlist({title, tmdbId, addedAt: today, addedBy: "manual"})`.
+- **ACT-4** ✓ Dismiss invokes `mutators.addManualToWatched({title, tmdbId}, "disliked", null)`.
+- **ACT-5** ✓ Cancel button in `renderAct` resets state and returns to the empty search.
+- **ACT-6** ✓ Optimistic semantics flow through `state.runMutation`. On success the search clears; on failure `renderAct` is called again so buttons re-enable.
+- **ACT-7** ✓ `makeActButton` disables the click target and its siblings before awaiting the mutation.
+
+## BOUNDARY (manual-add)
+
+- **BOUNDARY-1** ✓ No code path reads or writes `tasteProfile`.
+- **BOUNDARY-2** ✓ No code path writes to `recommended`. Manual-add lands entries in `watched` or `watchlist` only.
+
+## Manual smoke test (manual-add)
+
+1. Type ≥2 chars in the search input → results appear after the debounce.
+2. Click a result → action bar shows poster, title (year), rating, lead actors (after a brief delay for the credits fetch), blurb, and five buttons.
+3. Tap **Loved** → action bar collapses, search resets, watched gains the entry with today's date.
+4. Tap **Watchlist** → entry appears in the Watchlist tab with `addedBy: "manual"`.
+5. Tap **Dismiss** → watched gains an entry with `feedback: "disliked"` and `watchedAt: null`.
+6. Type a string TMDB doesn't have → "No matches." renders.
+7. Disconnect network → an inline error appears under the input; the rest of the UI keeps working.
