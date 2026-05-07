@@ -3,8 +3,72 @@
 // WLIST-1..WLIST-7, WACTION-1..WACTION-5, BOUNDARY-1, BOUNDARY-2.
 
 import * as mutators from "./mutators.js";
+import * as tmdb from "./tmdb.js";
 
 let sortMode = "newest"; // WLIST-2 default. Persists across re-renders within the page session.
+
+// Lazy enrichment: each card with a tmdbId kicks off a TMDB details
+// fetch on first render. Result is cached at the tmdb.js layer; this
+// just tracks per-card DOM nodes that need updating when a fetch lands.
+const detailsByTmdbId = new Map();
+const inFlightFetches = new Set();
+
+function enrichCard(card, tmdbId) {
+  if (tmdbId == null) return;
+  const cached = detailsByTmdbId.get(tmdbId);
+  if (cached) {
+    fillEnrichedFields(card, cached);
+    return;
+  }
+  if (inFlightFetches.has(tmdbId)) return;
+  inFlightFetches.add(tmdbId);
+  tmdb.getDetails(tmdbId)
+    .then((d) => {
+      inFlightFetches.delete(tmdbId);
+      if (!d) return;
+      detailsByTmdbId.set(tmdbId, d);
+      fillEnrichedFields(card, d);
+    })
+    .catch(() => {
+      inFlightFetches.delete(tmdbId);
+      // Silent fallback — the minimal card stays as-is.
+    });
+}
+
+function fillEnrichedFields(card, d) {
+  if (!card.isConnected) return; // card was removed before fetch landed
+  const posterImg = card.querySelector(".watchlist-poster");
+  if (posterImg && d.posterUrlLarge) {
+    posterImg.src = d.posterUrlLarge;
+    posterImg.classList.remove("watchlist-poster-empty");
+  }
+  const titleEl = card.querySelector(".rec-title");
+  if (titleEl && d.year && titleEl.dataset.hasYear !== "1") {
+    titleEl.textContent = `${titleEl.textContent} (${d.year})`;
+    titleEl.dataset.hasYear = "1";
+  }
+  const enrichSlot = card.querySelector(".watchlist-enrichment");
+  if (!enrichSlot) return;
+  while (enrichSlot.firstChild) enrichSlot.removeChild(enrichSlot.firstChild);
+  if (typeof d.voteAverage === "number" && d.voteAverage > 0) {
+    const r = document.createElement("div");
+    r.className = "manual-add-preview-rating";
+    r.textContent = `${d.voteAverage.toFixed(1)}/10 TMDB`;
+    enrichSlot.appendChild(r);
+  }
+  if (Array.isArray(d.cast) && d.cast.length > 0) {
+    const c = document.createElement("div");
+    c.className = "manual-add-preview-cast";
+    c.textContent = `Lead: ${d.cast.map((p) => p.name).join(", ")}`;
+    enrichSlot.appendChild(c);
+  }
+  if (d.overview) {
+    const p = document.createElement("p");
+    p.className = "manual-add-preview-overview";
+    p.textContent = d.overview;
+    enrichSlot.appendChild(p);
+  }
+}
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -57,9 +121,21 @@ function makeButton(label, onClick) {
 }
 
 function renderCard(entry) {
-  const card = el("article", "rec-card"); // shares card styling with recs
+  const card = el("article", "rec-card watchlist-card"); // shares card styling with recs
 
-  card.appendChild(el("h2", "rec-title", entry.title || "Untitled")); // WLIST-4
+  // WLIST-4: rich layout — poster on the left, text on the right.
+  // Enrichment (poster, year, rating, cast, blurb) is filled in lazily
+  // by enrichCard(); the minimal layout below renders immediately.
+  const top = el("div", "watchlist-card-top");
+  const poster = document.createElement("img");
+  poster.className = "watchlist-poster watchlist-poster-empty";
+  poster.alt = "";
+  poster.width = 80;
+  poster.height = 120;
+  top.appendChild(poster);
+
+  const text = el("div", "watchlist-card-text");
+  text.appendChild(el("h2", "rec-title", entry.title || "Untitled")); // WLIST-4
 
   const meta = el("p", "rec-meta");
   if (entry.addedAt) {
@@ -72,7 +148,14 @@ function renderCard(entry) {
       : "added manually";
     meta.appendChild(el("span", "", fromText)); // WLIST-4
   }
-  if (meta.childNodes.length > 0) card.appendChild(meta);
+  if (meta.childNodes.length > 0) text.appendChild(meta);
+
+  // Enrichment slot — populated by fillEnrichedFields when the TMDB
+  // details fetch resolves. Empty until then.
+  text.appendChild(el("div", "watchlist-enrichment"));
+
+  top.appendChild(text);
+  card.appendChild(top);
 
   const id = entryIdentity(entry);
   const today = () => new Date().toISOString().slice(0, 10);
@@ -86,6 +169,10 @@ function renderCard(entry) {
   actions.appendChild(makeButton("Dismiss",  () =>                       // WACTION-3
     mutators.moveWatchlistToWatched(id, "disliked", null)));
   card.appendChild(actions);
+
+  // Kick off lazy enrichment after the card is in the DOM. queueMicrotask
+  // would also work; setTimeout 0 is more reliably "after layout".
+  setTimeout(() => enrichCard(card, entry.tmdbId), 0);
 
   return card;
 }

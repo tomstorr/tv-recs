@@ -205,11 +205,183 @@ body {
   padding: 2rem 0;
 }
 
+/* manual-add */
+.manual-add-section {
+  margin: 0 0 1.25rem;
+}
+.manual-add {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 0.85rem;
+}
+.manual-add-input {
+  font: inherit;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fafafa;
+}
+.manual-add-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: #fff;
+}
+.manual-add-status {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-height: 1rem;
+}
+.manual-add-results {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.manual-add-result {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.manual-add-result:hover,
+.manual-add-result:focus {
+  background: #f0f4fb;
+  outline: none;
+}
+.manual-add-poster {
+  width: 32px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 3px;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+.manual-add-poster-empty {
+  border: 1px dashed var(--border);
+  background: transparent;
+}
+.manual-add-result-title { font-weight: 500; }
+.manual-add-result-year { color: var(--muted); font-size: 0.85rem; }
+
+.manual-add-act-title {
+  font-weight: 500;
+  margin: 0 0 0.25rem;
+}
+.manual-add-preview {
+  display: flex;
+  gap: 0.85rem;
+  margin-bottom: 0.6rem;
+}
+.manual-add-preview-poster {
+  width: 80px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: #f0f0f0;
+}
+.manual-add-preview-text {
+  flex: 1;
+  min-width: 0;
+}
+.manual-add-preview-rating {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+.manual-add-preview-cast {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+.manual-add-preview-overview {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+
+/* watchlist-card rich layout — mirrors manual-add-preview */
+.watchlist-card-top {
+  display: flex;
+  gap: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.watchlist-poster {
+  width: 80px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: #f0f0f0;
+}
+.watchlist-poster-empty {
+  /* While the details fetch is in flight (or for items with no
+     tmdbId), keep the slot reserved so the layout doesn't jump. */
+  visibility: hidden;
+}
+.watchlist-card-text {
+  flex: 1;
+  min-width: 0;
+}
+.watchlist-enrichment {
+  margin-top: 0.4rem;
+}
+
+.manual-add-cancel-row {
+  margin-top: 0.4rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+  .manual-add-preview {
+    gap: 0.6rem;
+  }
+  .manual-add-preview-poster {
+    width: 60px;
+    height: 90px;
+  }
+  .manual-add-preview-overview {
+    font-size: 0.85rem;
+  }
+  .watchlist-poster {
+    width: 60px;
+    height: 90px;
+  }
+  .watchlist-card-top {
+    gap: 0.6rem;
+  }
+}
+
 @media (max-width: 600px) {
   #app { padding: 1rem; }
   .main-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
+  }
+  /* Button rows fit even widths on narrow screens. auto-fit + minmax
+     makes the row layout adapt: 4 buttons (watchlist) get 4 cols at
+     ~85-100px each; 5 buttons (recs / manual-add act bar) get 5 cols
+     at ~65-80px each on most phones (≥360px viewport). Sub-360px
+     viewports fall back to a 4+1 wrap, accepted trade-off. */
+  .rec-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+    gap: 0.35rem;
+    margin: 0.4rem 0 0;
+  }
+  .rec-action {
+    margin: 0;
+    padding: 0.5rem 0.3rem;
+    font-size: 0.8rem;
+    text-align: center;
   }
 }

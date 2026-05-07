@@ -8,6 +8,7 @@
 // wires feedback buttons through to mutators.
 
 import * as mutators from "./mutators.js";
+import * as manualAdd from "./manual-add.js";
 
 let sortMode = "newest"; // LIST-2 default. Persists across re-renders within the page session.
 
@@ -105,6 +106,12 @@ function renderCard(rec) {
 // list naturally reflects the latest in-memory data. No internal caching.
 export function render(container, { state }) {
   while (container.firstChild) container.removeChild(container.firstChild);
+
+  // SEARCH-1: manual-add lives at the top of the Recommendations tab,
+  // above the sort toggle.
+  const manualAddSection = el("div", "manual-add-section");
+  container.appendChild(manualAddSection);
+  manualAdd.render(manualAddSection);
 
   const sortBar = el("div", "rec-sort-bar");
   sortBar.appendChild(el("span", "muted", "Sort:"));

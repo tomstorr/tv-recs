@@ -55,6 +55,23 @@ export function addToWatchlist(item) {
   });
 }
 
+// ACT-2 / ACT-4 (manual-add): append a brand-new watched entry from
+// outside the recommendation flow. Used for "I watched X years ago and
+// remember loving it" (watchedAt = today) or "I'd never watch X"
+// (watchedAt = null, feedback = "disliked").
+export function addManualToWatched(item, feedback, watchedAt) {
+  return runMutation("addManualToWatched", (data) => {
+    if (!Array.isArray(data.watched)) data.watched = []; // READ-5
+    data.watched.push({
+      title: item.title,
+      tmdbId: item.tmdbId ?? null,
+      feedback,
+      watchedAt: watchedAt ?? null,
+    });
+    return data;
+  });
+}
+
 // FEEDBACK-4: atomic — Dismiss path. Sets rec.feedback = "dismissed" AND
 // appends to watched with feedback="disliked", watchedAt=null. The null
 // watchedAt distinguishes a Dismiss from a Disliked-after-watching while
