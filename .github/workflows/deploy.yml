@@ -1,0 +1,66 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate config.js from secrets
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          DATA_FILE_ID: ${{ secrets.DATA_FILE_ID }}
+        run: |
+          # Required env vars are listed above. Fail loud if any is empty
+          # so a missing secret doesn't silently ship a broken config.
+          for v in GOOGLE_CLIENT_ID GOOGLE_API_KEY TMDB_API_KEY DATA_FILE_ID; do
+            if [ -z "${!v}" ]; then
+              echo "::error::Repo secret $v is empty or unset" >&2
+              exit 1
+            fi
+          done
+          python3 - <<'PY'
+          import json, os
+          cfg = {
+              "GOOGLE_CLIENT_ID": os.environ["GOOGLE_CLIENT_ID"],
+              "GOOGLE_API_KEY":   os.environ["GOOGLE_API_KEY"],
+              "TMDB_API_KEY":     os.environ["TMDB_API_KEY"],
+              "DATA_FILE_ID":     os.environ["DATA_FILE_ID"],
+          }
+          with open("config.js", "w") as f:
+              # Note: this file is generated at deploy time by GitHub Actions
+              # from repo secrets. It is gitignored and not in source.
+              f.write("window.tvrecs_config = " + json.dumps(cfg, indent=2) + ";\n")
+          PY
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

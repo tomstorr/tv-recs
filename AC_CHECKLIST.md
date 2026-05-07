@@ -10,7 +10,7 @@ All AC IDs are also referenced inline in code comments at the satisfying line.
 
 - **CONFIG-1** ✓ `js/config-check.js` requires `GOOGLE_CLIENT_ID`, `GOOGLE_API_KEY`, `TMDB_API_KEY`, `DATA_FILE_ID`. App does not start (renders config-error screen instead) if any are missing. (Spec says three values; deviation note above.)
 - **CONFIG-2** ✓ `config.example.js` committed at project root, comments link each placeholder to the README step that explains how to obtain it.
-- **CONFIG-3** **deviated** — `config.js` was originally gitignored per the spec. After confirming with the user, the file is now committed so the GitHub Pages deploy works without a build step. The four values it holds are all public-by-design for this single-user app (origin-locked OAuth client_id, referrer-locked Drive Picker API key scoped to two APIs, free-tier TMDB key, the Drive file ID itself which is useless without the SA key at `~/.config/`). `.gitignore` carries an inline comment explaining the rationale. The spec rule remains correct in the general case; documented as a deliberate deviation here.
+- **CONFIG-3** ✓ `config.js` is gitignored. Production builds generate `config.js` at deploy time inside `.github/workflows/deploy.yml` from repo secrets (`GOOGLE_CLIENT_ID`, `GOOGLE_API_KEY`, `TMDB_API_KEY`, `DATA_FILE_ID`); the generated file ships in the GitHub Pages artifact only. (Briefly during the 2026-05-07 session the file was committed as a pragmatic shortcut; GitHub Secret Scanning flagged it, the API key was rotated, and we moved to this proper pattern.)
 - **CONFIG-4** ✓ `js/config-check.js` detects missing *and* placeholder values; `js/ui.js → renderConfigError` shows a clear screen listing what's missing or still a placeholder, with a pointer to README.
 
 ## AUTH
