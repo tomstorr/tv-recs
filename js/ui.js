@@ -6,6 +6,8 @@
 // LIFECYCLE-1 (loading), LIFECYCLE-4 (refresh)
 // STATE-3 (saving dot), STATE-4 (last synced)
 
+import * as recommendationsUi from "./recommendations-ui.js";
+
 const root = () => document.getElementById("app");
 
 function el(tag, cls, text) {
@@ -140,18 +142,11 @@ export function renderMain({ state, onSignOut, onRefresh }) {
   wrap.appendChild(status);
 
   const body = el("div", "main-body");
-  body.appendChild(el("p", "muted",
-    "Data sync is connected. Recommendations, watchlist, and history UIs will be built as separate features."));
 
-  if (state.data) {
-    const summary = el("ul", "summary");
-    summary.appendChild(el("li", "", `Watched: ${(state.data.watched || []).length}`));
-    summary.appendChild(el("li", "", `Watchlist: ${(state.data.watchlist || []).length}`));
-    summary.appendChild(el("li", "", `Recommended: ${(state.data.recommended || []).length}`));
-    const lu = state.data.tasteProfile && state.data.tasteProfile.lastUpdated;
-    summary.appendChild(el("li", "", `Taste profile last updated: ${lu || "—"}`));
-    body.appendChild(summary);
-  }
+  // Recommendations list owns its own subtree. LIST-1..LIST-8 / FEEDBACK-1..FEEDBACK-5.
+  const recsContainer = el("section", "recs-section");
+  body.appendChild(recsContainer);
+  recommendationsUi.render(recsContainer, { state });
 
   wrap.appendChild(body);
   root().appendChild(wrap);

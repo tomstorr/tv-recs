@@ -41,6 +41,30 @@ export function addToWatchlist(item) {
   });
 }
 
+// FEEDBACK-3: atomic — sets the recommendation's feedback to "watchlist"
+// AND appends a watchlist entry, in a single Drive write. Avoids the
+// inconsistent state you'd get from chaining two separate mutators.
+export function markRecommendationAsWatchlist(idOrTitle) {
+  return runMutation("markRecommendationAsWatchlist", (data) => {
+    if (!Array.isArray(data.recommended)) data.recommended = []; // READ-5
+    if (!Array.isArray(data.watchlist)) data.watchlist = [];     // READ-5
+    const idx = findIndex(data.recommended, idOrTitle);
+    if (idx === -1) {
+      throw new Error(`Recommendation not found: ${idOrTitle}`);
+    }
+    const rec = data.recommended[idx];
+    data.recommended[idx] = { ...rec, feedback: "watchlist" };   // FEEDBACK-3
+    const today = new Date().toISOString().slice(0, 10);
+    data.watchlist.push({                                         // FEEDBACK-3
+      title: rec.title,
+      tmdbId: rec.tmdbId ?? null,
+      addedAt: today,
+      addedBy: "recommendation",
+    });
+    return data;
+  });
+}
+
 // STATE-2
 export function moveWatchlistToWatched(idOrTitle, feedback, watchedAt) {
   return runMutation("moveWatchlistToWatched", (data) => {

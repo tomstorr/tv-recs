@@ -71,3 +71,44 @@ All AC IDs are also referenced inline in code comments at the satisfying line.
 6. Open dev console, manually clear `localStorage['tvrecs.token']`, then trigger a mutator (or wait for the existing token to expire) → see "Reconnect Google Drive" screen, in-memory state preserved. (AUTH-5)
 7. Click Refresh → fetch happens, lastSyncedAt updates. (LIFECYCLE-4, STATE-4)
 8. Click Sign out → return to Connect screen, in-memory state cleared. (AUTH-6)
+
+---
+
+# Acceptance criteria — recommendations-ui
+
+All AC IDs are also referenced inline in code comments at the satisfying line.
+
+## LIST
+
+- **LIST-1** ✓ `js/recommendations-ui.js → render` filters `state.data.recommended` to entries where `feedback === null`. Already-rated entries stay in the file but don't render.
+- **LIST-2** ✓ `js/recommendations-ui.js → sortRecs("newest")` sorts descending by `recommendedAt`, ties broken by original array order.
+- **LIST-3** ✓ Sort toggle in `js/recommendations-ui.js → render` flips `sortMode` between `"newest"` and `"az"`. Button label reflects current mode.
+- **LIST-4** ✓ `js/recommendations-ui.js → renderCard` shows title, platform, rating, blurb. Nothing else.
+- **LIST-5** ✓ No code-path branches on `isExplorationPick`. Exploration picks render identically to other cards.
+- **LIST-6** ✓ `js/recommendations-ui.js → render` shows the empty-state copy when `pending.length === 0`.
+- **LIST-7** ✓ `.rec-list { display: flex; flex-direction: column; gap: 1rem; }` in `styles.css`.
+- **LIST-8** ✓ `js/state.js` calls `emit()` on every state change; `js/app.js → render → ui.renderMain` is wired to it via `state.subscribe`. `renderMain` calls `recommendationsUi.render` from scratch each time, so the list reflects current state without a manual refresh.
+
+## FEEDBACK
+
+- **FEEDBACK-1** ✓ `js/recommendations-ui.js → renderCard` adds four buttons.
+- **FEEDBACK-2** ✓ Loved / OK / Disliked buttons call `mutators.setRecommendationFeedback(id, value)`. Optimistic disappearance falls out of `state.runMutation` (it applies the change to in-memory data immediately, the LIST-1 filter then excludes the entry on the next render).
+- **FEEDBACK-3** ✓ Watchlist button calls the new combined mutator `mutators.markRecommendationAsWatchlist(id)`. Single Drive write does both feedback flip and watchlist append. Atomic by virtue of being one PATCH.
+- **FEEDBACK-4** ✓ `js/recommendations-ui.js → makeButton` disables every action button on the card before awaiting the mutator. On revert (failure) the card is rebuilt from scratch via the next render, so buttons come back fresh and enabled.
+- **FEEDBACK-5** ✓ `state.js`'s existing revert path (WRITE-5) restores in-memory data on failure; `state.writeError` is set; `ui.renderMain → status-bar` surfaces the message. Card reappears on the next render.
+
+## BOUNDARY
+
+- **BOUNDARY-1** ✓ No code in `js/recommendations-ui.js` reads or writes `tasteProfile`. Belt-and-braces: `state.js`'s WRITE-4 check would block any accidental mutation.
+- **BOUNDARY-2** ✓ No code in `js/recommendations-ui.js` reads or writes the `watched` array. Watchlist tap appends to `watchlist`, not `watched`.
+
+## Manual smoke test
+
+Run `python3 -m http.server 8000` in the repo root, open `http://localhost:8000`, sign in if needed, then:
+
+1. Main screen should show one or more recommendation cards (10 in current data) sorted newest first. Empty state if zero. (LIST-1, LIST-2, LIST-6)
+2. Click the sort toggle → list re-sorts A→Z. Click again → back to newest. (LIST-3)
+3. Tap **OK** on a card → card disappears immediately, saving dot appears, then disappears, last-synced timestamp updates. (FEEDBACK-2, STATE-3, STATE-4)
+4. Tap **Watchlist** on another card → card disappears, single write happens (one saving dot cycle), last-synced updates. Verify with `drive-helper.sh read` from terminal that the recommendation got `feedback: "watchlist"` AND a new entry appeared in `watchlist` with `addedBy: "recommendation"`. (FEEDBACK-3)
+5. Reload the page → the cards you rated stay gone; their entries persist in the JSON file. (LIST-1 + state.js round-trip)
+6. Optional failure path: kill your network (DevTools → Network → Offline), tap a feedback button → after the retry, an error appears and the card returns to the list. (FEEDBACK-5)

@@ -117,11 +117,67 @@ body {
   color: var(--error);
 }
 
-.summary {
-  padding-left: 1.2rem;
-  margin: 0.5rem 0;
+/* recommendations-ui */
+.recs-section {
+  margin-top: 0.5rem;
 }
-.summary li { margin: 0.15rem 0; }
+.rec-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+.rec-sort-toggle {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+}
+.rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* LIST-7: spaced cards */
+}
+.rec-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.1rem;
+}
+.rec-title {
+  margin: 0 0 0.3rem;
+  font-size: 1.15rem;
+}
+.rec-meta {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.rec-meta-sep {
+  color: var(--border);
+}
+.rec-blurb {
+  margin: 0 0 0.75rem;
+  color: var(--fg);
+}
+.rec-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem -0.25rem 0; /* counteract .btn margin for tidy alignment */
+}
+.rec-action {
+  font-size: 0.9rem;
+  padding: 0.4rem 0.85rem;
+}
+.rec-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.rec-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 2rem 0;
+}
 
 @media (max-width: 600px) {
   #app { padding: 1rem; }
