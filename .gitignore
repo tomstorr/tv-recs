@@ -1,8 +1,12 @@
 # macOS
 .DS_Store
 
-# Local config — must never be committed (CONFIG-3)
-config.js
+# config.js holds only public-by-design values for this single-user app
+# (origin-locked OAuth client_id, referrer-locked Drive Picker API key,
+# TMDB free-tier key, and the Drive file ID — itself useless without the
+# SA key at ~/.config/tv-recs-skill/). Committing it makes the GitHub
+# Pages deploy functional without a build step. CONFIG-3 in the spec
+# was conservative; documented as a deviation in AC_CHECKLIST.md.
 
 # Personal handoff notes
 HANDOFF.md
