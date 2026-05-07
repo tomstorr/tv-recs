@@ -117,7 +117,33 @@ body {
   color: var(--error);
 }
 
-/* recommendations-ui */
+/* tabs (NAV-1, NAV-2) */
+.tab-strip {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 1rem;
+}
+.tab {
+  font: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: -1px; /* overlap the strip border */
+}
+.tab:hover {
+  color: var(--fg);
+}
+.tab-active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+/* recommendations-ui & watchlist-ui share these */
 .recs-section {
   margin-top: 0.5rem;
 }

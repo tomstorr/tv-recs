@@ -94,6 +94,8 @@ function renderCard(rec) {
     mutators.setRecommendationFeedback(id, "disliked")));
   actions.appendChild(makeButton("Watchlist", () =>                 // FEEDBACK-3
     mutators.markRecommendationAsWatchlist(id)));
+  actions.appendChild(makeButton("Dismiss",   () =>                 // FEEDBACK-4
+    mutators.dismissRecommendation(id)));
   card.appendChild(actions);
 
   return card;

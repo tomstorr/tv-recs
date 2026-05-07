@@ -19,15 +19,29 @@ function findIndex(arr, idOrTitle) {
   );
 }
 
-// STATE-2: example named mutator from the spec.
+// STATE-2 + FEEDBACK-2.
+// Per PRODUCT.md: rating a recommendation as watched also appends to the
+// watched array, so the skill's next taste-profile update sees the new
+// signal. The recommendation entry itself also keeps the feedback (so it
+// stays out of the pending list — see LIST-1 in recommendations-ui).
 export function setRecommendationFeedback(idOrTitle, feedback) {
   return runMutation("setRecommendationFeedback", (data) => {
     if (!Array.isArray(data.recommended)) data.recommended = []; // WRITE-3 / READ-5
+    if (!Array.isArray(data.watched)) data.watched = [];          // READ-5
     const idx = findIndex(data.recommended, idOrTitle);
     if (idx === -1) {
       throw new Error(`Recommendation not found: ${idOrTitle}`);
     }
-    data.recommended[idx] = { ...data.recommended[idx], feedback }; // WRITE-3
+    const rec = data.recommended[idx];
+    data.recommended[idx] = { ...rec, feedback }; // WRITE-3
+    // FEEDBACK-2: also push to watched so the taste-profile update sees it.
+    const today = new Date().toISOString().slice(0, 10);
+    data.watched.push({
+      title: rec.title,
+      tmdbId: rec.tmdbId ?? null,
+      feedback,
+      watchedAt: today,
+    });
     return data;
   });
 }
@@ -37,6 +51,31 @@ export function addToWatchlist(item) {
   return runMutation("addToWatchlist", (data) => {
     if (!Array.isArray(data.watchlist)) data.watchlist = []; // WRITE-3 / READ-5
     data.watchlist.push({ ...item }); // WRITE-3
+    return data;
+  });
+}
+
+// FEEDBACK-4: atomic — Dismiss path. Sets rec.feedback = "dismissed" AND
+// appends to watched with feedback="disliked", watchedAt=null. The null
+// watchedAt distinguishes a Dismiss from a Disliked-after-watching while
+// still feeding the taste profile a negative signal (per user spec:
+// "score the same as Disliked").
+export function dismissRecommendation(idOrTitle) {
+  return runMutation("dismissRecommendation", (data) => {
+    if (!Array.isArray(data.recommended)) data.recommended = []; // READ-5
+    if (!Array.isArray(data.watched)) data.watched = [];          // READ-5
+    const idx = findIndex(data.recommended, idOrTitle);
+    if (idx === -1) {
+      throw new Error(`Recommendation not found: ${idOrTitle}`);
+    }
+    const rec = data.recommended[idx];
+    data.recommended[idx] = { ...rec, feedback: "dismissed" }; // FEEDBACK-4
+    data.watched.push({                                        // FEEDBACK-4
+      title: rec.title,
+      tmdbId: rec.tmdbId ?? null,
+      feedback: "disliked",
+      watchedAt: null,
+    });
     return data;
   });
 }

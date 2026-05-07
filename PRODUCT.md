@@ -61,7 +61,7 @@ Defined in detail in the scheduled task spec. The app must treat this as the con
       "recommendedAt": "YYYY-MM-DD",
       "blurb": "string",
       "rating": "string",
-      "feedback": "null|loved|ok|disliked|watchlist",
+      "feedback": "null|loved|ok|disliked|watchlist|dismissed",
       "matchedSignals": ["string"],
       "isExplorationPick": "boolean"
     }

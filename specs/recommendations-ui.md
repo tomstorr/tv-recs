@@ -19,13 +19,14 @@ Depends on `auth-and-data-sync` for state and mutator infrastructure.
 - **LIST-7**: Cards are visually spaced (gap between cards), not edge-to-edge.
 - **LIST-8**: Card list re-renders automatically when state changes — after a successful mutation, a successful Refresh, or a successful Reconnect — without needing a page reload.
 
-### FEEDBACK (the four actions)
+### FEEDBACK (the five actions)
 
-- **FEEDBACK-1**: Each card has four buttons: **Loved**, **OK**, **Disliked**, **Watchlist**.
-- **FEEDBACK-2**: Tapping Loved / OK / Disliked invokes `mutators.setRecommendationFeedback(index, "loved" | "ok" | "disliked")`. Optimistic update: the card disappears from the list immediately (since the underlying entry no longer has `feedback === null`).
-- **FEEDBACK-3**: Tapping Watchlist invokes a single combined mutator (new — `mutators.markRecommendationAsWatchlist(index)`) that, in one Drive write, both sets the recommendation's `feedback` to `"watchlist"` AND appends a new entry to the `watchlist` array with `addedBy: "recommendation"`. Atomic — either both apply or neither does.
-- **FEEDBACK-4**: While a mutation targeting a card is in flight, that card's buttons are visibly disabled (and click-inert) to prevent double-taps. The state.js queue already serialises mutators globally; this is a UX gate.
-- **FEEDBACK-5**: On mutation failure (after WRITE-5's auto-retry), the optimistic removal is reverted (the card reappears in the list — handled by state.js's existing revert path) and an error toast surfaces with the underlying message.
+- **FEEDBACK-1**: Each card has five buttons: **Loved**, **OK**, **Disliked**, **Watchlist**, **Dismiss**.
+- **FEEDBACK-2**: Tapping Loved / OK / Disliked invokes `mutators.setRecommendationFeedback(id, "loved" | "ok" | "disliked")`. The mutator (a) sets `feedback` on the recommendation entry AND (b) appends a new entry to the `watched` array (`title`, `tmdbId`, the chosen feedback, today's date as `watchedAt`). Both changes happen in one Drive write. The "also writes to watched" half satisfies PRODUCT.md's contract: "the app does so when the user … rates a recommendation as watched", which is what feeds the next taste-profile update. Optimistic update: the card disappears from the list immediately (the underlying entry no longer has `feedback === null`).
+- **FEEDBACK-3**: Tapping Watchlist invokes a single combined mutator (`mutators.markRecommendationAsWatchlist(id)`) that, in one Drive write, both sets the recommendation's `feedback` to `"watchlist"` AND appends a new entry to the `watchlist` array with `addedBy: "recommendation"`. Atomic.
+- **FEEDBACK-4**: Tapping Dismiss invokes `mutators.dismissRecommendation(id)`. The mutator (a) sets the recommendation's `feedback` to the new value `"dismissed"` AND (b) appends to `watched` with `feedback: "disliked"` and `watchedAt: null`. The `null` watchedAt is the data tell that distinguishes a Dismiss from a Disliked-after-watching, while the disliked feedback gives the taste profile the same negative signal. Atomic.
+- **FEEDBACK-5**: While a mutation targeting a card is in flight, that card's buttons are visibly disabled (and click-inert) to prevent double-taps. The state.js queue already serialises mutators globally; this is a UX gate.
+- **FEEDBACK-6**: On mutation failure (after WRITE-5's auto-retry), the optimistic removal is reverted (the card reappears in the list — handled by state.js's existing revert path) and an error toast surfaces with the underlying message.
 
 ### BOUNDARY (what this feature does not touch)
 

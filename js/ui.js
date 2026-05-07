@@ -7,6 +7,9 @@
 // STATE-3 (saving dot), STATE-4 (last synced)
 
 import * as recommendationsUi from "./recommendations-ui.js";
+import * as watchlistUi from "./watchlist-ui.js";
+
+let activeTab = "recommendations"; // NAV-4 default
 
 const root = () => document.getElementById("app");
 
@@ -141,12 +144,44 @@ export function renderMain({ state, onSignOut, onRefresh }) {
   }
   wrap.appendChild(status);
 
-  const body = el("div", "main-body");
+  // NAV-1: tab strip with counts.
+  const recs = (state.data && state.data.recommended) || [];
+  const wl   = (state.data && state.data.watchlist)   || [];
+  const pendingRecsCount = recs.filter((r) => r.feedback === null).length;
+  const watchlistCount = wl.length;
 
-  // Recommendations list owns its own subtree. LIST-1..LIST-8 / FEEDBACK-1..FEEDBACK-5.
-  const recsContainer = el("section", "recs-section");
-  body.appendChild(recsContainer);
-  recommendationsUi.render(recsContainer, { state });
+  const tabs = el("div", "tab-strip");
+  const recTab = el(
+    "button",
+    activeTab === "recommendations" ? "tab tab-active" : "tab", // NAV-2
+    `Recommendations (${pendingRecsCount})`, // NAV-1
+  );
+  recTab.addEventListener("click", () => {
+    activeTab = "recommendations"; // NAV-3
+    renderMain({ state, onSignOut, onRefresh });
+  });
+  const wlTab = el(
+    "button",
+    activeTab === "watchlist" ? "tab tab-active" : "tab", // NAV-2
+    `Watchlist (${watchlistCount})`, // NAV-1
+  );
+  wlTab.addEventListener("click", () => {
+    activeTab = "watchlist"; // NAV-3
+    renderMain({ state, onSignOut, onRefresh });
+  });
+  tabs.appendChild(recTab);
+  tabs.appendChild(wlTab);
+  wrap.appendChild(tabs);
+
+  const body = el("div", "main-body");
+  const sectionContainer = el("section", "recs-section");
+  body.appendChild(sectionContainer);
+
+  if (activeTab === "watchlist") {
+    watchlistUi.render(sectionContainer, { state }); // WLIST-1..7
+  } else {
+    recommendationsUi.render(sectionContainer, { state }); // LIST-1..8
+  }
 
   wrap.appendChild(body);
   root().appendChild(wrap);

@@ -91,24 +91,68 @@ All AC IDs are also referenced inline in code comments at the satisfying line.
 
 ## FEEDBACK
 
-- **FEEDBACK-1** ✓ `js/recommendations-ui.js → renderCard` adds four buttons.
-- **FEEDBACK-2** ✓ Loved / OK / Disliked buttons call `mutators.setRecommendationFeedback(id, value)`. Optimistic disappearance falls out of `state.runMutation` (it applies the change to in-memory data immediately, the LIST-1 filter then excludes the entry on the next render).
-- **FEEDBACK-3** ✓ Watchlist button calls the new combined mutator `mutators.markRecommendationAsWatchlist(id)`. Single Drive write does both feedback flip and watchlist append. Atomic by virtue of being one PATCH.
-- **FEEDBACK-4** ✓ `js/recommendations-ui.js → makeButton` disables every action button on the card before awaiting the mutator. On revert (failure) the card is rebuilt from scratch via the next render, so buttons come back fresh and enabled.
-- **FEEDBACK-5** ✓ `state.js`'s existing revert path (WRITE-5) restores in-memory data on failure; `state.writeError` is set; `ui.renderMain → status-bar` surfaces the message. Card reappears on the next render.
+- **FEEDBACK-1** ✓ `js/recommendations-ui.js → renderCard` adds five buttons: Loved / OK / Disliked / Watchlist / Dismiss.
+- **FEEDBACK-2** ✓ Loved / OK / Disliked buttons call `mutators.setRecommendationFeedback(id, value)`. The mutator both sets `feedback` on the recommendation AND appends to `watched` (per PRODUCT.md "rates a recommendation as watched") in one Drive write, with `watchedAt` = today's date.
+- **FEEDBACK-3** ✓ Watchlist button calls the combined mutator `mutators.markRecommendationAsWatchlist(id)`. Single Drive write does both feedback flip (to `"watchlist"`) and watchlist append. Atomic.
+- **FEEDBACK-4** ✓ Dismiss button calls `mutators.dismissRecommendation(id)`. Single Drive write sets recommendation `feedback` to the new value `"dismissed"` AND appends to `watched` with `feedback: "disliked"` and `watchedAt: null`. The null `watchedAt` distinguishes a Dismiss from a Disliked-after-watching while still feeding a negative signal to the next taste-profile update.
+- **FEEDBACK-5** ✓ `js/recommendations-ui.js → makeButton` disables every action button on the card before awaiting the mutator. On revert (failure) the card is rebuilt fresh by the next render, so buttons come back enabled.
+- **FEEDBACK-6** ✓ `state.js`'s existing revert path (WRITE-5) restores in-memory data on failure; `state.writeError` is set; `ui.renderMain → status-bar` surfaces the message. Card reappears on the next render.
 
-## BOUNDARY
+## BOUNDARY (recommendations-ui)
 
 - **BOUNDARY-1** ✓ No code in `js/recommendations-ui.js` reads or writes `tasteProfile`. Belt-and-braces: `state.js`'s WRITE-4 check would block any accidental mutation.
-- **BOUNDARY-2** ✓ No code in `js/recommendations-ui.js` reads or writes the `watched` array. Watchlist tap appends to `watchlist`, not `watched`.
+- **BOUNDARY-2** ✓ Watchlist tap appends to `watchlist`, not `watched`. Other taps follow the rules above.
 
-## Manual smoke test
+## Manual smoke test (recommendations-ui)
 
-Run `python3 -m http.server 8000` in the repo root, open `http://localhost:8000`, sign in if needed, then:
+1. Recommendation cards visible; toggle Sort flips between Newest / A→Z. (LIST-2, LIST-3)
+2. Tap **OK** on a card → disappears immediately, saving dot, last-synced updates; verify via `drive-helper.sh read` that the rec has `feedback: "ok"` AND `watched` has a new entry with `feedback: "ok"`, `watchedAt` = today. (FEEDBACK-2)
+3. Tap **Watchlist** on another → disappears; verify rec has `feedback: "watchlist"` AND `watchlist` has the new entry. (FEEDBACK-3)
+4. Tap **Dismiss** on another → disappears; verify rec has `feedback: "dismissed"` AND `watched` has a new entry with `feedback: "disliked"`, `watchedAt: null`. (FEEDBACK-4)
+5. Reload → rated cards stay gone. (LIST-1 + state.js round-trip)
+6. Optional: DevTools → Network → Offline, tap a button → after retry, error shows in status bar, card returns. (FEEDBACK-6)
 
-1. Main screen should show one or more recommendation cards (10 in current data) sorted newest first. Empty state if zero. (LIST-1, LIST-2, LIST-6)
-2. Click the sort toggle → list re-sorts A→Z. Click again → back to newest. (LIST-3)
-3. Tap **OK** on a card → card disappears immediately, saving dot appears, then disappears, last-synced timestamp updates. (FEEDBACK-2, STATE-3, STATE-4)
-4. Tap **Watchlist** on another card → card disappears, single write happens (one saving dot cycle), last-synced updates. Verify with `drive-helper.sh read` from terminal that the recommendation got `feedback: "watchlist"` AND a new entry appeared in `watchlist` with `addedBy: "recommendation"`. (FEEDBACK-3)
-5. Reload the page → the cards you rated stay gone; their entries persist in the JSON file. (LIST-1 + state.js round-trip)
-6. Optional failure path: kill your network (DevTools → Network → Offline), tap a feedback button → after the retry, an error appears and the card returns to the list. (FEEDBACK-5)
+---
+
+# Acceptance criteria — watchlist-ui
+
+All AC IDs are also referenced inline in code comments.
+
+## NAV
+
+- **NAV-1** ✓ `js/ui.js → renderMain` builds a `.tab-strip` with two `.tab` buttons. Labels include live counts: pending recs (LIST-1 filter) and `watchlist.length`.
+- **NAV-2** ✓ The active tab gets the `tab-active` class (heavier weight + accent underline in CSS).
+- **NAV-3** ✓ Tab clicks update `activeTab` (module-level) and call `renderMain` again. No page reload, no extra network call.
+- **NAV-4** ✓ `activeTab` defaults to `"recommendations"` on module load.
+
+## WLIST
+
+- **WLIST-1** ✓ `js/watchlist-ui.js → render` reads `state.data.watchlist` and renders every entry. No filter (presence in the array == in the watchlist).
+- **WLIST-2** ✓ `sortEntries("newest")` sorts descending by `addedAt`, ties broken by original array order.
+- **WLIST-3** ✓ Sort toggle in the section header flips between `"newest"` and `"az"`. Same UX as recommendations-ui.
+- **WLIST-4** ✓ `renderCard` shows title and a meta line: "Added &lt;date&gt; · from a recommendation" or "added manually".
+- **WLIST-5** ✓ Empty-state copy renders when `watchlist.length === 0`.
+- **WLIST-6** ✓ Re-uses `.rec-card` and `.rec-list` styles for visual consistency.
+- **WLIST-7** ✓ Re-renders via the parent (`ui.renderMain`) on every state change, same path as recommendations-ui (LIST-8).
+
+## WACTION
+
+- **WACTION-1** ✓ Four buttons per card: Loved / OK / Disliked / Dismiss.
+- **WACTION-2** ✓ Loved / OK / Disliked call `mutators.moveWatchlistToWatched(id, value, today)`. Mutator removes from `watchlist`, appends to `watched` with `watchedAt` = today.
+- **WACTION-3** ✓ Dismiss calls `mutators.moveWatchlistToWatched(id, "disliked", null)` — same mutator, but `watchedAt = null`. The null is the data tell that the user changed their mind without watching.
+- **WACTION-4** ✓ `makeButton` disables siblings on click; the post-mutation re-render restores fresh enabled buttons (or, on failure, rebuilds the card with fresh enabled buttons too).
+- **WACTION-5** ✓ Failures flow through state.js's revert path → `state.writeError` → `.status-error` in the status bar.
+
+## BOUNDARY (watchlist-ui)
+
+- **BOUNDARY-1** ✓ No code in `js/watchlist-ui.js` touches `tasteProfile`.
+- **BOUNDARY-2** ✓ No code in `js/watchlist-ui.js` modifies `recommended`. The original recommendation entry's `feedback === "watchlist"` is left as-is — it's the historical record of the parking action.
+
+## Manual smoke test (watchlist-ui)
+
+1. Click the **Watchlist** tab → switches view, no reload. (NAV-1, NAV-3)
+2. With existing watchlist items: cards render, sort toggle flips Newest / A→Z. (WLIST-1..3)
+3. Empty case: with all items watched, see the empty-state copy. (WLIST-5)
+4. Tap **Loved** on a card → disappears; verify via `drive-helper.sh read` that the entry is gone from `watchlist` AND `watched` has a new entry with the right values. (WACTION-2)
+5. Tap **Dismiss** on another → disappears; verify same removal AND new `watched` entry has `feedback: "disliked"`, `watchedAt: null`. (WACTION-3)
+6. Switch back to Recommendations tab — the count in the tab labels should reflect the changes. (NAV-1)
