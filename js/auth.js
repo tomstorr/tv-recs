@@ -86,6 +86,27 @@ export function requestToken() {
   });
 }
 
+// AUTH-5 enhancement: silent token refresh.
+// The default empty prompt asks GIS to use the user's existing Google session
+// to mint a fresh access token without UI. If the user is no longer signed
+// into Google (or has revoked the grant), the callback fires with an error
+// and the caller falls back to the interactive Reconnect flow.
+export function requestTokenSilently() {
+  return new Promise((resolve, reject) => {
+    if (pendingTokenRequest) {
+      reject(new Error("Another token request is already in flight"));
+      return;
+    }
+    pendingTokenRequest = { resolve, reject };
+    try {
+      tokenClient.requestAccessToken({ prompt: "" });
+    } catch (e) {
+      pendingTokenRequest = null;
+      reject(e);
+    }
+  });
+}
+
 export function clearToken() {
   // AUTH-5 (on auth failure) and AUTH-6 (on user sign-out).
   localStorage.removeItem(TOKEN_KEY);

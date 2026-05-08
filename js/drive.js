@@ -9,10 +9,36 @@ const WRITE_URL = (id) => `https://www.googleapis.com/upload/drive/v3/files/${en
 
 let getToken = () => null;
 let getFileId = () => null;
+let refreshSilently = null;
 
-export function configure({ getAccessToken, fileId }) {
+export function configure({ getAccessToken, fileId, refreshSilently: refresh }) {
   getToken = getAccessToken;
   getFileId = () => fileId;
+  refreshSilently = refresh || null;
+}
+
+function withAuth(init) {
+  const token = ensureToken();
+  return {
+    ...init,
+    headers: { ...(init.headers || {}), Authorization: `Bearer ${token}` },
+  };
+}
+
+// AUTH-5 enhancement: on a 401/403, attempt one silent token refresh and
+// retry the request. If the refresh fails or the retry still 401s, the
+// caller sees the auth error and routes to the Reconnect screen as before.
+async function fetchWithRefresh(url, init) {
+  let resp = await fetch(url, withAuth(init));
+  if ((resp.status === 401 || resp.status === 403) && refreshSilently) {
+    try {
+      await refreshSilently();
+      resp = await fetch(url, withAuth(init));
+    } catch (_e) {
+      // Silent refresh failed; the 401 response is propagated to the caller.
+    }
+  }
+  return resp;
 }
 
 function classify(resp, body) {
@@ -49,12 +75,9 @@ function ensureToken() {
 
 // READ-1
 export async function readFile() {
-  const token = ensureToken();
   let resp;
   try {
-    resp = await fetch(READ_URL(getFileId()), {
-      headers: { Authorization: `Bearer ${token}` }, // READ-1
-    });
+    resp = await fetchWithRefresh(READ_URL(getFileId()), {}); // READ-1
   } catch (networkError) {
     const e = new Error(`Drive read failed: ${networkError.message}`); // READ-3
     e.kind = "transport";
@@ -77,16 +100,12 @@ export async function readFile() {
 
 // WRITE-2
 export async function writeFile(data) {
-  const token = ensureToken();
   const body = JSON.stringify(data); // WRITE-3: full updated JSON in the body
   let resp;
   try {
-    resp = await fetch(WRITE_URL(getFileId()), {
+    resp = await fetchWithRefresh(WRITE_URL(getFileId()), {
       method: "PATCH", // WRITE-2
-      headers: {
-        Authorization: `Bearer ${token}`, // WRITE-2
-        "Content-Type": "application/json", // WRITE-2
-      },
+      headers: { "Content-Type": "application/json" }, // WRITE-2 (Authorization added by fetchWithRefresh)
       body, // WRITE-3
     });
   } catch (networkError) {

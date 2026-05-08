@@ -24,6 +24,7 @@ async function boot() {
   drive.configure({
     getAccessToken: () => auth.getStoredToken(), // AUTH-3 / AUTH-4
     fileId: config.DATA_FILE_ID,
+    refreshSilently: () => auth.requestTokenSilently(), // AUTH-5 silent refresh
   });
 
   // Re-render whenever state changes.
