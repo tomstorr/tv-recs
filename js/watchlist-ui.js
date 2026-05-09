@@ -50,7 +50,10 @@ function fillEnrichedFields(card, d) {
   const enrichSlot = card.querySelector(".watchlist-enrichment");
   if (!enrichSlot) return;
   while (enrichSlot.firstChild) enrichSlot.removeChild(enrichSlot.firstChild);
-  if (typeof d.voteAverage === "number" && d.voteAverage > 0) {
+  // Skip TMDB rating if the rec entry already provided one — the rec's
+  // rating string is richer (e.g. "91% Rotten Tomatoes, 8.4 IMDb") than
+  // a single TMDB number.
+  if (card.dataset.hasRecRating !== "1" && typeof d.voteAverage === "number" && d.voteAverage > 0) {
     const r = document.createElement("div");
     r.className = "manual-add-preview-rating";
     r.textContent = `${d.voteAverage.toFixed(1)}/10 TMDB`;
@@ -62,12 +65,27 @@ function fillEnrichedFields(card, d) {
     c.textContent = `Lead: ${d.cast.map((p) => p.name).join(", ")}`;
     enrichSlot.appendChild(c);
   }
-  if (d.overview) {
+  // Skip TMDB overview if the rec entry already provided a tailored
+  // blurb — the schedule's blurb is more useful than TMDB's generic one.
+  if (card.dataset.hasRecBlurb !== "1" && d.overview) {
     const p = document.createElement("p");
     p.className = "manual-add-preview-overview";
     p.textContent = d.overview;
     enrichSlot.appendChild(p);
   }
+}
+
+// Find the recommendation entry that produced a watchlist item, so we
+// can pull through its platform / rating / blurb. Match by tmdbId when
+// possible (stable across renames); fall back to title for entries the
+// schedule couldn't tag with a TMDB id.
+function findMatchingRec(recs, entry) {
+  if (!Array.isArray(recs)) return null;
+  if (entry.tmdbId != null) {
+    const byId = recs.find((r) => r.tmdbId === entry.tmdbId);
+    if (byId) return byId;
+  }
+  return recs.find((r) => r.title === entry.title) || null;
 }
 
 function el(tag, cls, text) {
@@ -120,12 +138,15 @@ function makeButton(label, onClick) {
   return b;
 }
 
-function renderCard(entry) {
+function renderCard(entry, recs) {
   const card = el("article", "rec-card watchlist-card"); // shares card styling with recs
 
   // WLIST-4: rich layout — poster on the left, text on the right.
-  // Enrichment (poster, year, rating, cast, blurb) is filled in lazily
-  // by enrichCard(); the minimal layout below renders immediately.
+  // Enrichment (poster, year, cast) is filled in lazily by enrichCard().
+  // Platform / rating / blurb come from the matching recommendation
+  // entry and render synchronously below — they're already in Drive,
+  // no fetch needed. The watchlist card was previously sparser than
+  // the rec card it came from; this fills that gap.
   const top = el("div", "watchlist-card-top");
   const poster = document.createElement("img");
   poster.className = "watchlist-poster watchlist-poster-empty";
@@ -150,8 +171,29 @@ function renderCard(entry) {
   }
   if (meta.childNodes.length > 0) text.appendChild(meta);
 
+  // Pull platform / rating / blurb from the matching recommendation
+  // entry (when there is one). For watchlist items added via manual-add
+  // there's no rec entry — TMDB enrichment fills the gap instead.
+  const rec = findMatchingRec(recs, entry);
+  if (rec) {
+    const recMeta = el("p", "rec-meta");
+    if (rec.platform) recMeta.appendChild(el("span", "", rec.platform));
+    if (rec.platform && rec.rating) recMeta.appendChild(el("span", "rec-meta-sep", " · "));
+    if (rec.rating) recMeta.appendChild(el("span", "", rec.rating));
+    if (recMeta.childNodes.length > 0) text.appendChild(recMeta);
+    if (rec.blurb) {
+      text.appendChild(el("p", "rec-blurb", rec.blurb));
+      card.dataset.hasRecBlurb = "1";
+    }
+    if (rec.platform || rec.rating) {
+      card.dataset.hasRecRating = "1";
+    }
+  }
+
   // Enrichment slot — populated by fillEnrichedFields when the TMDB
-  // details fetch resolves. Empty until then.
+  // details fetch resolves. Stays empty for items we can't TMDB-look-up
+  // (rec entries with tmdbId=null) or for items where rec content
+  // already covered everything.
   text.appendChild(el("div", "watchlist-enrichment"));
 
   top.appendChild(text);
@@ -196,6 +238,7 @@ export function render(container, { state }) {
   container.appendChild(sortBar);
 
   const entries = (state.data && state.data.watchlist) || []; // WLIST-1
+  const recs = (state.data && state.data.recommended) || []; // for renderCard rec-lookup
 
   if (entries.length === 0) {
     container.appendChild(
@@ -210,6 +253,6 @@ export function render(container, { state }) {
 
   const sorted = sortEntries(entries, sortMode); // WLIST-2 / WLIST-3
   const list = el("div", "rec-list"); // WLIST-6 spacing via CSS
-  for (const entry of sorted) list.appendChild(renderCard(entry));
+  for (const entry of sorted) list.appendChild(renderCard(entry, recs));
   container.appendChild(list);
 }
