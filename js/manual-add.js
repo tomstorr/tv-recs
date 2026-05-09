@@ -76,6 +76,12 @@ function renderSearch(container) {
     if (debounceTimer) clearTimeout(debounceTimer);
     if (q.trim().length < MIN_CHARS) {
       // SEARCH-6
+      // Bump inFlightSeq so any in-flight TMDB fetch from a prior
+      // 2+ char query is invalidated when its response lands —
+      // otherwise it would repaint stale results into the cleared
+      // list. doSearch's `if (seq !== inFlightSeq) return` does the
+      // catch.
+      inFlightSeq++;
       lastResults = [];
       lastError = null;
       // Repaint just the results area without rebuilding the input
