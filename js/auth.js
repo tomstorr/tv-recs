@@ -91,16 +91,34 @@ export function requestToken() {
 // to mint a fresh access token without UI. If the user is no longer signed
 // into Google (or has revoked the grant), the callback fires with an error
 // and the caller falls back to the interactive Reconnect flow.
+//
+// iOS Safari (ITP) blocks the GIS silent-refresh iframe without firing the
+// callback at all — no resolve, no reject — which would hang the app on the
+// Loading screen forever. The timeout below bounds the wait so the caller
+// can fall back to the interactive Reconnect path.
+const SILENT_REFRESH_TIMEOUT_MS = 4000;
+
 export function requestTokenSilently() {
   return new Promise((resolve, reject) => {
     if (pendingTokenRequest) {
       reject(new Error("Another token request is already in flight"));
       return;
     }
-    pendingTokenRequest = { resolve, reject };
+    const timer = setTimeout(() => {
+      if (pendingTokenRequest === entry) {
+        pendingTokenRequest = null;
+        reject(new Error("Silent token refresh timed out"));
+      }
+    }, SILENT_REFRESH_TIMEOUT_MS);
+    const entry = {
+      resolve: (v) => { clearTimeout(timer); resolve(v); },
+      reject: (e) => { clearTimeout(timer); reject(e); },
+    };
+    pendingTokenRequest = entry;
     try {
       tokenClient.requestAccessToken({ prompt: "" });
     } catch (e) {
+      clearTimeout(timer);
       pendingTokenRequest = null;
       reject(e);
     }
