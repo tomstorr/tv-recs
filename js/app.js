@@ -30,6 +30,10 @@ async function boot() {
   // Re-render whenever state changes.
   state.subscribe(render);
 
+  // Cover the blank gap during auth.init — especially the OAuth callback
+  // exchange (returning from Google) which is a network round trip.
+  ui.renderLoading();
+
   await auth.init({ config, onTokenChange: render });
 
   bootCompleted = true;

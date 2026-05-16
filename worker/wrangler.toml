@@ -1,0 +1,11 @@
+name = "tv-recs-oauth"
+main = "src/worker.js"
+compatibility_date = "2026-05-01"
+
+[vars]
+GOOGLE_CLIENT_ID = "661008265884-ojjeds0j43t2ji6l6fjuvfo1mlfg2vdl.apps.googleusercontent.com"
+ALLOWED_ORIGINS = '["https://tomstorr.github.io","http://localhost:8000"]'
+
+# GOOGLE_CLIENT_SECRET is set via:
+#   wrangler secret put GOOGLE_CLIENT_SECRET
+# It must NOT be added here — secrets stay out of source control.

@@ -27,4 +27,11 @@ window.tvrecs_config = {
   // File ID of the shared tv-recommendations.json in Google Drive.
   // From the Drive URL: drive.google.com/file/d/{THIS_PART}/view
   DATA_FILE_ID: "YOUR_DATA_FILE_ID_HERE",
+
+  // Cloudflare Worker URL that proxies the Google token endpoint for
+  // authorization-code exchange and refresh. Deployed from code/worker/
+  // via `wrangler deploy`; the URL is printed by wrangler. Looks like
+  //   https://tv-recs-oauth.<your-subdomain>.workers.dev
+  // No trailing slash.
+  WORKER_URL: "YOUR_WORKER_URL_HERE",
 };

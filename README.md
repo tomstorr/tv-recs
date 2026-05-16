@@ -42,8 +42,12 @@ The new Google Cloud UI calls this "Google Auth Platform". Either way:
 3. **Authorised JavaScript origins** — add:
    - `http://localhost:8000`
    - your production URL (e.g. `https://<username>.github.io`)
-4. Leave **Authorised redirect URIs** empty.
+4. **Authorised redirect URIs** — add **the same two URLs** (the authorization-code flow requires the page URL to be in this list):
+   - `http://localhost:8000/`
+   - `https://<username>.github.io/tv-recs/`
+   - The trailing slash matters; it must match what `window.location.origin + window.location.pathname` produces.
 5. Create. Copy the **Client ID** — that's `GOOGLE_CLIENT_ID` in config.js.
+6. Copy the **Client secret** too (click "Show secret" if hidden). You'll paste it into the Cloudflare Worker in step 7. It must never be committed or pasted into the browser code.
 
 ### 4. API key (for the Drive Picker)
 
@@ -75,11 +79,25 @@ https://drive.google.com/file/d/{THIS_PART_IS_THE_ID}/view
 
 That's `DATA_FILE_ID` in config.js.
 
-### 7. Create config.js
+### 7. Deploy the Cloudflare Worker
+
+The Worker holds the OAuth `client_secret` (Google's Web application client type requires it for the token-endpoint calls — it can't safely live in browser JS). See [`worker/README.md`](worker/README.md) for the full deploy steps. In short:
+
+```sh
+npm install -g wrangler        # one time
+wrangler login                  # one time, opens browser
+cd worker
+wrangler secret put GOOGLE_CLIENT_SECRET   # paste the secret from step 3.6
+wrangler deploy
+```
+
+Wrangler prints the deployed URL — that's `WORKER_URL` in config.js.
+
+### 8. Create config.js
 
 ```sh
 cp config.example.js config.js
-# then open config.js and fill in the four values from steps 3, 4, 5, 6
+# then open config.js and fill in the five values from steps 3, 4, 5, 6, 7
 ```
 
 `config.js` is gitignored — never commit it.
@@ -109,11 +127,12 @@ The spec (AUTH-2) says: try `drive.file` scope, fall back to `drive` if the data
 - `index.html` — entry; loads `config.js` then `js/app.js` as a module.
 - `config.js` (gitignored) — `window.tvrecs_config = { ... }`.
 - `js/config-check.js` — validates config (CONFIG-1, CONFIG-4).
-- `js/auth.js` — Google Identity Services sign-in + Drive Picker.
+- `js/auth.js` — redirect-based OAuth authorization-code flow (no GIS); token exchange/refresh via the Worker; Drive Picker.
 - `js/drive.js` — Drive API read/write.
 - `js/state.js` — in-memory state + mutator queue with refetch-modify-write-retry-revert.
 - `js/mutators.js` — named mutators (consumed by later features).
 - `js/ui.js` — screens (connect / loading / picker / main / error / reconnect).
 - `js/app.js` — boot orchestration and screen routing.
+- `worker/` — Cloudflare Worker that proxies Google's token endpoint (holds the `client_secret`). Deploy separately with `wrangler`.
 
 See `AC_CHECKLIST.md` for the per-criterion satisfaction map.

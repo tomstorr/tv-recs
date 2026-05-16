@@ -7,6 +7,7 @@ const REQUIRED = [
   "GOOGLE_API_KEY",   // CONFIG-1 (extra over spec; needed for Drive Picker)
   "TMDB_API_KEY",     // CONFIG-1
   "DATA_FILE_ID",     // CONFIG-1
+  "WORKER_URL",       // OAuth token exchange/refresh proxy (Cloudflare Worker)
 ];
 
 const PLACEHOLDERS = new Set([
@@ -14,6 +15,7 @@ const PLACEHOLDERS = new Set([
   "YOUR_GOOGLE_API_KEY_HERE",
   "YOUR_TMDB_API_KEY_HERE",
   "YOUR_DATA_FILE_ID_HERE",
+  "YOUR_WORKER_URL_HERE",
   "",
 ]);
 

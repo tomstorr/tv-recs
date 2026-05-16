@@ -8,7 +8,7 @@ The foundation feature. Authenticates the user with Google, fetches the canonica
 
 ### CONFIG (configuration)
 
-- **CONFIG-1**: A `config.js` file (gitignored) exports three values: `GOOGLE_CLIENT_ID`, `TMDB_API_KEY`, and `DATA_FILE_ID`. The app does not start successfully if any are missing.
+- **CONFIG-1**: A `config.js` file (gitignored) exports five values: `GOOGLE_CLIENT_ID`, `GOOGLE_API_KEY`, `TMDB_API_KEY`, `DATA_FILE_ID`, `WORKER_URL`. The app does not start successfully if any are missing. `WORKER_URL` points at the Cloudflare Worker that proxies Google's token endpoint for authorization-code exchange and refresh.
 - **CONFIG-2**: A `config.example.js` is committed to the repo with placeholder values and a comment explaining how to obtain each one.
 - **CONFIG-3**: `config.js` is listed in `.gitignore`.
 - **CONFIG-4**: If the app loads and detects missing or placeholder config values, it shows a clear error state with instructions, not a broken UI.
@@ -16,10 +16,10 @@ The foundation feature. Authenticates the user with Google, fetches the canonica
 ### AUTH (authentication)
 
 - **AUTH-1**: First-time visit (no stored token) shows a "Connect Google Drive" button and no other app UI.
-- **AUTH-2**: Clicking Connect triggers a Google OAuth 2.0 flow using Google Identity Services, requesting scope `https://www.googleapis.com/auth/drive.file`. If `drive.file` does not work because the data file was created outside the app, the app falls back to `https://www.googleapis.com/auth/drive` and documents this in the README.
-- **AUTH-3**: After successful OAuth, the access token is stored in `localStorage` under a single namespaced key (e.g. `tvrecs.token`).
-- **AUTH-4**: On subsequent page loads, if a stored token exists, the app uses it without re-prompting. The "Connect Google Drive" screen is skipped.
-- **AUTH-5**: If a request to Drive returns 401 or 403, the app clears the stored token and shows a "Reconnect Google Drive" prompt. In-memory state from before the auth failure is preserved until the user reconnects, so unsaved feedback is not lost silently.
+- **AUTH-2**: Clicking Connect kicks off a Google OAuth 2.0 **authorization code flow** with `access_type=offline` and `prompt=consent`, scope `https://www.googleapis.com/auth/drive.file`. The browser navigates to Google (full-page redirect, no popup) and Google redirects back to the same page with `?code=...&state=...`. The app exchanges the code via the Cloudflare Worker at `WORKER_URL/exchange`; the Worker returns the access token + refresh token from Google. (Deviation from spec: per-file `drive.file` + Drive Picker, not a `drive`-scope fallback. See README.)
+- **AUTH-3**: After successful exchange, the access token is stored in `localStorage` under `tvrecs.access_token` and the refresh token under `tvrecs.refresh_token`. The refresh token is what enables AUTH-5's transparent re-auth without re-prompting the user.
+- **AUTH-4**: On subsequent page loads, if a stored access token exists, the app uses it without re-prompting. If only the refresh token survives (e.g. access token cleared), the silent-refresh path (AUTH-5 enhancement) mints a fresh access token transparently — still no re-prompt.
+- **AUTH-5**: If a Drive request returns 401 or 403, the app first attempts a silent refresh via `WORKER_URL/refresh` using the stored refresh token. If that succeeds, the Drive request is retried with the new access token and the user notices nothing. If the refresh fails (refresh token revoked or expired, ~6 months without use), the app clears both tokens and shows a "Reconnect Google Drive" prompt. In-memory state from before the auth failure is preserved until the user reconnects, so unsaved feedback is not lost silently.
 - **AUTH-6**: There is a "Sign out" or "Disconnect" control somewhere in the app's settings or navigation that clears the stored token and returns the user to the connect screen.
 
 ### READ (initial data load)
@@ -62,7 +62,7 @@ The foundation feature. Authenticates the user with Google, fetches the canonica
 
 ## Notes for the implementer
 
-- Use Google Identity Services (GIS), not the older `gapi.auth2`. GIS is the current supported library.
+- The browser does not use Google Identity Services (GIS) anymore. The auth flow is a plain `https://accounts.google.com/o/oauth2/v2/auth` redirect with `response_type=code`, and the token endpoint is reached via the Cloudflare Worker (which holds the `client_secret` — required by Google's Web application client type). `gapi` is still loaded, but only for the Drive Picker.
 - The Drive API requires the access token in an `Authorization: Bearer <token>` header on every request. There is no separate API key for Drive in this flow.
-- For local development, GitHub Pages will be the production origin (`https://<username>.github.io`). When registering the OAuth client in Google Cloud Console, also add `http://localhost:8000` (or whichever port the user serves locally) as an authorized JavaScript origin.
+- For local development, GitHub Pages will be the production origin (`https://<username>.github.io`). When registering the OAuth client in Google Cloud Console, add both the production origin and `http://localhost:8000` (or whichever port the user serves locally) as authorized JavaScript origins AND as authorized redirect URIs (the code flow needs the redirect URI list, unlike the implicit flow it replaced).
 - Reference each acceptance criterion ID (e.g. `// AUTH-3`, `// WRITE-5`) in code comments next to the line that satisfies it.

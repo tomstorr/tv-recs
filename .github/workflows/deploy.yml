@@ -30,10 +30,11 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           DATA_FILE_ID: ${{ secrets.DATA_FILE_ID }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
         run: |
           # Required env vars are listed above. Fail loud if any is empty
           # so a missing secret doesn't silently ship a broken config.
-          for v in GOOGLE_CLIENT_ID GOOGLE_API_KEY TMDB_API_KEY DATA_FILE_ID; do
+          for v in GOOGLE_CLIENT_ID GOOGLE_API_KEY TMDB_API_KEY DATA_FILE_ID WORKER_URL; do
             if [ -z "${!v}" ]; then
               echo "::error::Repo secret $v is empty or unset" >&2
               exit 1
@@ -46,6 +47,7 @@ jobs:
               "GOOGLE_API_KEY":   os.environ["GOOGLE_API_KEY"],
               "TMDB_API_KEY":     os.environ["TMDB_API_KEY"],
               "DATA_FILE_ID":     os.environ["DATA_FILE_ID"],
+              "WORKER_URL":       os.environ["WORKER_URL"],
           }
           with open("config.js", "w") as f:
               # Note: this file is generated at deploy time by GitHub Actions
