@@ -94,7 +94,7 @@ All AC IDs are also referenced inline in code comments at the satisfying line.
 - **FEEDBACK-1** ✓ `js/recommendations-ui.js → renderCard` adds five buttons: Loved / OK / Disliked / Watchlist / Dismiss.
 - **FEEDBACK-2** ✓ Loved / OK / Disliked buttons call `mutators.setRecommendationFeedback(id, value)`. The mutator both sets `feedback` on the recommendation AND appends to `watched` (per PRODUCT.md "rates a recommendation as watched") in one Drive write, with `watchedAt` = today's date.
 - **FEEDBACK-3** ✓ Watchlist button calls the combined mutator `mutators.markRecommendationAsWatchlist(id)`. Single Drive write does both feedback flip (to `"watchlist"`) and watchlist append. Atomic.
-- **FEEDBACK-4** ✓ Dismiss button calls `mutators.dismissRecommendation(id)`. Single Drive write sets recommendation `feedback` to the new value `"dismissed"` AND appends to `watched` with `feedback: "disliked"` and `watchedAt: null`. The null `watchedAt` distinguishes a Dismiss from a Disliked-after-watching while still feeding a negative signal to the next taste-profile update.
+- **FEEDBACK-4** ✓ Dismiss button calls `mutators.dismissRecommendation(id)`. Single Drive write sets recommendation `feedback` to `"dismissed"` AND appends to `watched` with `feedback: "dismissed"` and `watchedAt: null`. The null `watchedAt` distinguishes a Dismiss from a Disliked-after-watching. The `"dismissed"` feedback in `watched` is exclusion-only — the skill keeps the show out of future picks but does not feed any positive, negative, or ambiguous signal from it.
 - **FEEDBACK-5** ✓ `js/recommendations-ui.js → makeButton` disables every action button on the card before awaiting the mutator. On revert (failure) the card is rebuilt fresh by the next render, so buttons come back enabled.
 - **FEEDBACK-6** ✓ `state.js`'s existing revert path (WRITE-5) restores in-memory data on failure; `state.writeError` is set; `ui.renderMain → status-bar` surfaces the message. Card reappears on the next render.
 
@@ -108,7 +108,7 @@ All AC IDs are also referenced inline in code comments at the satisfying line.
 1. Recommendation cards visible; toggle Sort flips between Newest / A→Z. (LIST-2, LIST-3)
 2. Tap **OK** on a card → disappears immediately, saving dot, last-synced updates; verify via `drive-helper.sh read` that the rec has `feedback: "ok"` AND `watched` has a new entry with `feedback: "ok"`, `watchedAt` = today. (FEEDBACK-2)
 3. Tap **Watchlist** on another → disappears; verify rec has `feedback: "watchlist"` AND `watchlist` has the new entry. (FEEDBACK-3)
-4. Tap **Dismiss** on another → disappears; verify rec has `feedback: "dismissed"` AND `watched` has a new entry with `feedback: "disliked"`, `watchedAt: null`. (FEEDBACK-4)
+4. Tap **Dismiss** on another → disappears; verify rec has `feedback: "dismissed"` AND `watched` has a new entry with `feedback: "dismissed"`, `watchedAt: null`. (FEEDBACK-4)
 5. Reload → rated cards stay gone. (LIST-1 + state.js round-trip)
 6. Optional: DevTools → Network → Offline, tap a button → after retry, error shows in status bar, card returns. (FEEDBACK-6)
 
@@ -139,7 +139,7 @@ All AC IDs are also referenced inline in code comments.
 
 - **WACTION-1** ✓ Four buttons per card: Loved / OK / Disliked / Dismiss.
 - **WACTION-2** ✓ Loved / OK / Disliked call `mutators.moveWatchlistToWatched(id, value, today)`. Mutator removes from `watchlist`, appends to `watched` with `watchedAt` = today.
-- **WACTION-3** ✓ Dismiss calls `mutators.moveWatchlistToWatched(id, "disliked", null)` — same mutator, but `watchedAt = null`. The null is the data tell that the user changed their mind without watching.
+- **WACTION-3** ✓ Dismiss calls `mutators.moveWatchlistToWatched(id, "dismissed", null)` — same mutator, but `watchedAt = null`. The null is the data tell that the user changed their mind without watching. The `"dismissed"` feedback is exclusion-only — the skill keeps the show out of future picks but does not feed any signal from it.
 - **WACTION-4** ✓ `makeButton` disables siblings on click; the post-mutation re-render restores fresh enabled buttons (or, on failure, rebuilds the card with fresh enabled buttons too).
 - **WACTION-5** ✓ Failures flow through state.js's revert path → `state.writeError` → `.status-error` in the status bar.
 
@@ -154,7 +154,7 @@ All AC IDs are also referenced inline in code comments.
 2. With existing watchlist items: cards render, sort toggle flips Newest / A→Z. (WLIST-1..3)
 3. Empty case: with all items watched, see the empty-state copy. (WLIST-5)
 4. Tap **Loved** on a card → disappears; verify via `drive-helper.sh read` that the entry is gone from `watchlist` AND `watched` has a new entry with the right values. (WACTION-2)
-5. Tap **Dismiss** on another → disappears; verify same removal AND new `watched` entry has `feedback: "disliked"`, `watchedAt: null`. (WACTION-3)
+5. Tap **Dismiss** on another → disappears; verify same removal AND new `watched` entry has `feedback: "dismissed"`, `watchedAt: null`. (WACTION-3)
 6. Switch back to Recommendations tab — the count in the tab labels should reflect the changes. (NAV-1)
 
 ---
@@ -178,7 +178,7 @@ All AC IDs are also referenced inline in code comments.
 - **ACT-1** ✓ `js/manual-add.js → onPick` swaps `mode` to `"act"` and `renderAct` builds a rich preview: large poster (when present), title + year, TMDB rating, lead actors (filled in by `enrichWithDetails` after a follow-up `/tv/{id}?append_to_response=credits` fetch), blurb, then five buttons.
 - **ACT-2** ✓ Loved / OK / Disliked invoke `mutators.addManualToWatched({title, tmdbId}, value, today)`. Appends to `watched`.
 - **ACT-3** ✓ Watchlist invokes `mutators.addToWatchlist({title, tmdbId, addedAt: today, addedBy: "manual"})`.
-- **ACT-4** ✓ Dismiss invokes `mutators.addManualToWatched({title, tmdbId}, "disliked", null)`.
+- **ACT-4** ✓ Dismiss invokes `mutators.addManualToWatched({title, tmdbId}, "dismissed", null)`. Exclusion-only — the skill won't recommend the show again but does not feed any signal from it.
 - **ACT-5** ✓ Cancel button in `renderAct` resets state and returns to the empty search.
 - **ACT-6** ✓ Optimistic semantics flow through `state.runMutation`. On success the search clears; on failure `renderAct` is called again so buttons re-enable.
 - **ACT-7** ✓ `makeActButton` disables the click target and its siblings before awaiting the mutation.
@@ -194,6 +194,6 @@ All AC IDs are also referenced inline in code comments.
 2. Click a result → action bar shows poster, title (year), rating, lead actors (after a brief delay for the credits fetch), blurb, and five buttons.
 3. Tap **Loved** → action bar collapses, search resets, watched gains the entry with today's date.
 4. Tap **Watchlist** → entry appears in the Watchlist tab with `addedBy: "manual"`.
-5. Tap **Dismiss** → watched gains an entry with `feedback: "disliked"` and `watchedAt: null`.
+5. Tap **Dismiss** → watched gains an entry with `feedback: "dismissed"` and `watchedAt: null`.
 6. Type a string TMDB doesn't have → "No matches." renders.
 7. Disconnect network → an inline error appears under the input; the rest of the UI keeps working.

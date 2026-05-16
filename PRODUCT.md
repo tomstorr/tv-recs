@@ -48,7 +48,7 @@ Defined in detail in the scheduled task spec. The app must treat this as the con
 ```json
 {
   "watched": [
-    { "title": "string", "tmdbId": "number|null", "feedback": "loved|ok|disliked", "watchedAt": "YYYY-MM-DD|null" }
+    { "title": "string", "tmdbId": "number|null", "feedback": "loved|ok|disliked|dismissed", "watchedAt": "YYYY-MM-DD|null" }
   ],
   "watchlist": [
     { "title": "string", "tmdbId": "number|null", "addedAt": "YYYY-MM-DD", "addedBy": "manual|recommendation" }

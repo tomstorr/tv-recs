@@ -58,7 +58,7 @@ export function addToWatchlist(item) {
 // ACT-2 / ACT-4 (manual-add): append a brand-new watched entry from
 // outside the recommendation flow. Used for "I watched X years ago and
 // remember loving it" (watchedAt = today) or "I'd never watch X"
-// (watchedAt = null, feedback = "disliked").
+// (watchedAt = null, feedback = "dismissed" — exclusion-only, no signal).
 export function addManualToWatched(item, feedback, watchedAt) {
   return runMutation("addManualToWatched", (data) => {
     if (!Array.isArray(data.watched)) data.watched = []; // READ-5
@@ -73,10 +73,11 @@ export function addManualToWatched(item, feedback, watchedAt) {
 }
 
 // FEEDBACK-4: atomic — Dismiss path. Sets rec.feedback = "dismissed" AND
-// appends to watched with feedback="disliked", watchedAt=null. The null
-// watchedAt distinguishes a Dismiss from a Disliked-after-watching while
-// still feeding the taste profile a negative signal (per user spec:
-// "score the same as Disliked").
+// appends to watched with feedback="dismissed", watchedAt=null. The
+// "dismissed" feedback is exclusion-only: the SKILL keeps the show out of
+// future picks (it's in watched) but treats it as a neutral signal — it
+// does not feed positive, negative, or ambiguous attribute extraction.
+// The null watchedAt is the data tell that the user never watched it.
 export function dismissRecommendation(idOrTitle) {
   return runMutation("dismissRecommendation", (data) => {
     if (!Array.isArray(data.recommended)) data.recommended = []; // READ-5
@@ -90,7 +91,7 @@ export function dismissRecommendation(idOrTitle) {
     data.watched.push({                                        // FEEDBACK-4
       title: rec.title,
       tmdbId: rec.tmdbId ?? null,
-      feedback: "disliked",
+      feedback: "dismissed",
       watchedAt: null,
     });
     return data;

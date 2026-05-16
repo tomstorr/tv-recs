@@ -260,7 +260,7 @@ function renderAct(container) {
       addedBy: "manual",
     }))); // ACT-3
   actions.appendChild(makeActButton("Dismiss", () =>
-    mutators.addManualToWatched(chosen, "disliked", null))); // ACT-4
+    mutators.addManualToWatched(chosen, "dismissed", null))); // ACT-4
   wrap.appendChild(actions);
 
   const cancelBar = el("div", "manual-add-cancel-row");

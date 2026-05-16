@@ -22,7 +22,7 @@ Depends on `auth-and-data-sync` for state and on the existing `moveWatchlistToWa
 
 - **WACTION-1**: Each card has four buttons: **Loved**, **OK**, **Disliked**, **Dismiss**.
 - **WACTION-2**: Tapping Loved / OK / Disliked invokes `mutators.moveWatchlistToWatched(id, "loved" | "ok" | "disliked", today)` (where `today` is `YYYY-MM-DD`). The mutator removes the entry from `watchlist` and appends a new `watched` entry (title, tmdbId, the chosen feedback, watchedAt = today). Optimistic: the card disappears.
-- **WACTION-3**: Tapping Dismiss invokes `mutators.moveWatchlistToWatched(id, "disliked", null)` — same mutator, but with `watchedAt = null`. Removes from watchlist; appends to watched with `feedback: "disliked"` and `watchedAt: null` (the data tell that the user changed their mind without watching). Optimistic: the card disappears.
+- **WACTION-3**: Tapping Dismiss invokes `mutators.moveWatchlistToWatched(id, "dismissed", null)` — same mutator, but with `watchedAt = null`. Removes from watchlist; appends to watched with `feedback: "dismissed"` and `watchedAt: null` (the data tell that the user changed their mind without watching). The `"dismissed"` feedback is exclusion-only: SKILL.md keeps the show out of future picks but does not feed any positive, negative, or ambiguous signal from it. Optimistic: the card disappears.
 - **WACTION-4**: While a mutation targeting a card is in flight, the card's buttons are disabled (defensive against fast double-taps). Mirrors recommendations-ui's FEEDBACK-5.
 - **WACTION-5**: On mutation failure (after WRITE-5's auto-retry), state.js reverts; the card reappears; the error message surfaces in the existing status bar.
 

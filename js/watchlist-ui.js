@@ -209,7 +209,7 @@ function renderCard(entry, recs) {
   actions.appendChild(makeButton("Disliked", () =>                       // WACTION-2
     mutators.moveWatchlistToWatched(id, "disliked", today())));
   actions.appendChild(makeButton("Dismiss",  () =>                       // WACTION-3
-    mutators.moveWatchlistToWatched(id, "disliked", null)));
+    mutators.moveWatchlistToWatched(id, "dismissed", null)));
   card.appendChild(actions);
 
   // Kick off lazy enrichment after the card is in the DOM. queueMicrotask
